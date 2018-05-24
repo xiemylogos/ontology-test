@@ -106,6 +106,9 @@ func buildEmergencyBlock(blockNum uint32, ctx *testframework.TestFrameworkContex
 		SigData: [][]byte{emergencysig},
 	}
 	emergencyblock.AdminSigs = []*types.Sig{adminsig}
+	emergencyHash := emergencyblock.Hash()
+	reqSig, _ := signature.Sign(account,emergencyHash[:])
+	emergencyblock.ReqSig = reqSig
 	emergency := new(bytes.Buffer)
 	if err := emergencyblock.Serialize(emergency); err != nil {
 		return nil, fmt.Errorf("Serialize emergencyblock error:%s", err)
