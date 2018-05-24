@@ -51,7 +51,7 @@ func buildBlackTranaction(blockNum uint32, blackNodePub string) (*types.Transact
 }
 
 func buildEmergencyBlock(blockNum uint32, ctx *testframework.TestFrameworkContext) ([]byte, error) {
-	prevBlkHash, err := getprevBlkHash(blockNum, ctx)
+	block, err := getprevBlock(blockNum, ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +66,7 @@ func buildEmergencyBlock(blockNum uint32, ctx *testframework.TestFrameworkContex
 		return nil, err
 	}
 
-	block, err := constructBlock(blockNum, prevBlkHash, sysTxs, consensusPayload, ctx)
+	blk, err := constructBlock(blockNum, block.Hash(), sysTxs, consensusPayload, ctx)
 	if err != nil {
 		return nil, fmt.Errorf("constructBlock failed")
 	}
@@ -79,7 +79,7 @@ func buildEmergencyBlock(blockNum uint32, ctx *testframework.TestFrameworkContex
 		Reason:         emergency.FalseConsensus,
 		Evidence:       emergency.ConsensusMessage,
 		ProposalBlkNum: blockNum,
-		ProposalBlk:    block,
+		ProposalBlk:    blk,
 		ProposerPK:     account.PublicKey,
 	}
 	blkHash := block.Hash()
@@ -113,16 +113,8 @@ func buildEmergencyBlock(blockNum uint32, ctx *testframework.TestFrameworkContex
 	return emergency.Bytes(), nil
 }
 
-func getprevBlkHash(blkNum uint32, ctx *testframework.TestFrameworkContext) (common.Uint256, error) {
-	blkhash, err := ctx.Ont.Rpc.GetBlockHash(blkNum)
-	if err != nil {
-		return common.Uint256{}, err
-	}
-	return blkhash, nil
-}
-
 func getprevBlock(blkNum uint32, ctx *testframework.TestFrameworkContext) (*types.Block, error) {
-	blk, err := ctx.Ont.Rpc.GetBlockByHeight(blkNum)
+	blk, err := ctx.Ont.Rpc.GetBlockByHeight(blkNum-1)
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +122,7 @@ func getprevBlock(blkNum uint32, ctx *testframework.TestFrameworkContext) (*type
 }
 
 func getconsensusPaylaod(blkNum uint32, ctx *testframework.TestFrameworkContext) ([]byte, error) {
-	blk, err := getprevBlock(blkNum-1, ctx)
+	blk, err := getprevBlock(blkNum, ctx)
 	if err != nil {
 		return nil, err
 	}
