@@ -6,21 +6,23 @@ import (
 	"github.com/ontio/ontology/account"
 )
 
-func TestGenesisEmergencyBlock(ctx *testframework.TestFrameworkContext) error {
+func TestGenesisEmergencyBlock(ctx *testframework.TestFrameworkContext) bool {
 	blknum, err := ctx.Ont.Rpc.GetBlockCount()
 	if err != nil {
 		ctx.LogError("ctx.Ont.Rpc.GetBlockCount error:%s", err)
+		return false
 	}
 
 	block, err := buildEmergencyBlock(blknum,ctx)
 	if err != nil {
 		ctx.LogError("buildEmergencyBlock error:%s", err)
+		return false
 	}
 	err = ctx.Ont.Rpc.SendEmergencyGovReq(block)
 	if err != nil {
 		ctx.LogError("ctx.Ont.Rpc.SendEmergencyGovReq error:%s", err)
 	}
-	return nil
+	return true
 }
 
 func getAccount(ctx *testframework.TestFrameworkContext) (*account.Account, bool) {
