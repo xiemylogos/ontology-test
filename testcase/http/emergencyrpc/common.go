@@ -81,6 +81,7 @@ func buildEmergencyBlock(blockNum uint32, ctx *testframework.TestFrameworkContex
 		ProposalBlkNum: blockNum,
 		ProposalBlk:    blk,
 		ProposerPK:     account.PublicKey,
+		ReqPK:account.PublicKey,
 	}
 	blkHash := block.Hash()
 	blocksig, err := signature.Sign(account, blkHash[:])
