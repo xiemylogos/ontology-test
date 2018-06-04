@@ -21,6 +21,7 @@ import (
 	stypes "github.com/ontio/ontology/smartcontract/types"
 	"github.com/ontio/ontology/common/serialization"
 	"github.com/ontio/ontology/core/signature"
+	"github.com/ontio/ontology/account"
 )
 
 var blocknodepub = "1202028541d32f3b09180b00affe67a40516846c16663ccb916fd2db8106619f087527"
@@ -65,16 +66,15 @@ func buildEmergencyBlock(blockNum uint32, ctx *testframework.TestFrameworkContex
 	if err != nil {
 		return nil, err
 	}
-
-	blk, err := constructBlock(blockNum, block.Hash(), sysTxs, consensusPayload, ctx)
-	if err != nil {
-		return nil, fmt.Errorf("constructBlock failed")
-	}
-
 	account, ok := getAccount(ctx)
 	if !ok {
 		return nil, fmt.Errorf("getAccount failed")
 	}
+	blk, err := constructBlock(account,blockNum, block.Hash(), sysTxs, consensusPayload, ctx)
+	if err != nil {
+		return nil, fmt.Errorf("constructBlock failed")
+	}
+
 	emergencyblock := &emergency.EmergencyActionRequest{
 		Reason:         emergency.FalseConsensus,
 		Evidence:       emergency.ConsensusMessage,
@@ -83,7 +83,7 @@ func buildEmergencyBlock(blockNum uint32, ctx *testframework.TestFrameworkContex
 		ProposerPK:     account.PublicKey,
 		ReqPK:account.PublicKey,
 	}
-	blkHash := block.Hash()
+	blkHash := blk.Hash()
 	blocksig, err := signature.Sign(account, blkHash[:])
 	if err != nil {
 		return nil, fmt.Errorf("sign block failed, block hash：%x, error: %s", blkHash, err)
@@ -154,7 +154,7 @@ func getblockRoot(txroot common.Uint256, ctx *testframework.TestFrameworkContext
 	return blkroot, nil
 }
 
-func constructBlock(blkNum uint32, prevBlkHash common.Uint256, systxs []*types.Transaction, consensusPayload []byte, ctx *testframework.TestFrameworkContext) (*types.Block, error) {
+func constructBlock(account *account.Account,blkNum uint32, prevBlkHash common.Uint256, systxs []*types.Transaction, consensusPayload []byte, ctx *testframework.TestFrameworkContext) (*types.Block, error) {
 	txHash := []common.Uint256{}
 	for _, t := range systxs {
 		txHash = append(txHash, t.Hash())
@@ -179,6 +179,7 @@ func constructBlock(blkNum uint32, prevBlkHash common.Uint256, systxs []*types.T
 		Header:       blkHeader,
 		Transactions: systxs,
 	}
+	blkHeader.Bookkeepers = []keypair.PublicKey{account.PublicKey}
 	return blk, nil
 }
 
