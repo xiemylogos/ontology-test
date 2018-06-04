@@ -179,7 +179,13 @@ func constructBlock(account *account.Account,blkNum uint32, prevBlkHash common.U
 		Header:       blkHeader,
 		Transactions: systxs,
 	}
+	blkHash := blk.Hash()
+	sig, err := signature.Sign(account, blkHash[:])
+	if err != nil {
+		return nil, fmt.Errorf("sign block failed, block hash：%x, error: %s", blkHash, err)
+	}
 	blkHeader.Bookkeepers = []keypair.PublicKey{account.PublicKey}
+	blkHeader.SigData = [][]byte{sig}
 	return blk, nil
 }
 
