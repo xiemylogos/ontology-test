@@ -12,7 +12,7 @@ import (
 	"github.com/ontio/ontology/common"
 	vbft "github.com/ontio/ontology/consensus/vbft"
 	"github.com/ontio/ontology/consensus/vbft/config"
-	"github.com/ontio/ontology/core/genesis"
+	nutils "github.com/ontio/ontology/smartcontract/service/native/utils"
 	"github.com/ontio/ontology/core/types"
 	"github.com/ontio/ontology/core/utils"
 	emergency "github.com/ontio/ontology/p2pserver/message/types"
@@ -36,7 +36,7 @@ func buildBlackTranaction(blockNum uint32, blackNodePub string) (*types.Transact
 	}
 
 	init := states.Contract{
-		Address: genesis.GovernanceContractAddress,
+		Address: nutils.GovernanceContractAddress,
 		Method:  governance.BLACK_NODE,
 		Args:    blacknodebf.Bytes(),
 	}
@@ -164,7 +164,6 @@ func constructBlock(account *account.Account,blkNum uint32, prevBlkHash common.U
 	if err != nil {
 		return nil, err
 	}
-	//blockRoot := ledger.DefLedger.GetBlockRootWithNewTxRoot(txRoot)
 
 	blkHeader := &types.Header{
 		PrevBlockHash:    prevBlkHash,
