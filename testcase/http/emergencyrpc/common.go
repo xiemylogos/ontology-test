@@ -70,7 +70,11 @@ func buildEmergencyBlock(blockNum uint32, ctx *testframework.TestFrameworkContex
 	if !ok {
 		return nil, fmt.Errorf("getAccount failed")
 	}
-	blk, err := constructBlock(account,blockNum, block.Hash(), sysTxs, consensusPayload, ctx)
+	blocktimestamp := uint32(time.Now().Unix())
+	if block.Header.Timestamp >= blocktimestamp {
+		blocktimestamp = block.Header.Timestamp + 1
+	}
+	blk, err := constructBlock(account,blockNum, block.Hash(),blocktimestamp, sysTxs, consensusPayload, ctx)
 	if err != nil {
 		return nil, fmt.Errorf("constructBlock failed")
 	}
@@ -154,7 +158,7 @@ func getblockRoot(txroot common.Uint256, ctx *testframework.TestFrameworkContext
 	return blkroot, nil
 }
 
-func constructBlock(account *account.Account,blkNum uint32, prevBlkHash common.Uint256, systxs []*types.Transaction, consensusPayload []byte, ctx *testframework.TestFrameworkContext) (*types.Block, error) {
+func constructBlock(account *account.Account,blkNum uint32, prevBlkHash common.Uint256,blocktimestamp uint32, systxs []*types.Transaction, consensusPayload []byte, ctx *testframework.TestFrameworkContext) (*types.Block, error) {
 	txHash := []common.Uint256{}
 	for _, t := range systxs {
 		txHash = append(txHash, t.Hash())
@@ -169,7 +173,7 @@ func constructBlock(account *account.Account,blkNum uint32, prevBlkHash common.U
 		PrevBlockHash:    prevBlkHash,
 		TransactionsRoot: txRoot,
 		BlockRoot:        blockRoot,
-		Timestamp:        uint32(time.Now().Unix()),
+		Timestamp:        blocktimestamp,
 		Height:           uint32(blkNum),
 		ConsensusData:    common.GetNonce(),
 		ConsensusPayload: consensusPayload,
