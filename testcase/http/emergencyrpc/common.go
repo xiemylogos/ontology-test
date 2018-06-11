@@ -138,9 +138,14 @@ func getconsensusPaylaod(blkNum uint32, ctx *testframework.TestFrameworkContext)
 	if err != nil {
 		return nil, err
 	}
+
+	lastConfigBlkNum := block.Info.LastConfigBlockNum
+	if block.Info.NewChainConfig != nil {
+		lastConfigBlkNum = block.Block.Header.Height
+	}
 	vbftBlkInfo := &vconfig.VbftBlockInfo{
 		Proposer:           math.MaxUint32,
-		LastConfigBlockNum: block.Info.LastConfigBlockNum,
+		LastConfigBlockNum: lastConfigBlkNum,
 		NewChainConfig:     nil,
 	}
 	consensusPayload, err := json.Marshal(vbftBlkInfo)
