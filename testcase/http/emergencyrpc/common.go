@@ -1,32 +1,30 @@
 package emergencyrpc
 
 import (
-	"math"
-	"time"
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"math"
+	"time"
 
 	"github.com/ontio/ontology-crypto/keypair"
 	"github.com/ontio/ontology-test/testframework"
+	"github.com/ontio/ontology/account"
 	"github.com/ontio/ontology/common"
+	"github.com/ontio/ontology/common/serialization"
 	vbft "github.com/ontio/ontology/consensus/vbft"
 	"github.com/ontio/ontology/consensus/vbft/config"
-	nutils "github.com/ontio/ontology/smartcontract/service/native/utils"
+	"github.com/ontio/ontology/core/signature"
 	"github.com/ontio/ontology/core/types"
 	"github.com/ontio/ontology/core/utils"
 	emergency "github.com/ontio/ontology/p2pserver/message/types"
 	"github.com/ontio/ontology/smartcontract/service/native/governance"
+	nutils "github.com/ontio/ontology/smartcontract/service/native/utils"
 	"github.com/ontio/ontology/smartcontract/states"
 	stypes "github.com/ontio/ontology/smartcontract/types"
-	"github.com/ontio/ontology/common/serialization"
-	"github.com/ontio/ontology/core/signature"
-	"github.com/ontio/ontology/account"
 )
 
-var blocknodepub = "1202028541d32f3b09180b00affe67a40516846c16663ccb916fd2db8106619f087527"
-
-func buildBlackTranaction(blockNum uint32, blackNodePub string) (*types.Transaction, error) {
+func buildBlackTranaction(blockNum uint32, blackNodePub []string) (*types.Transaction, error) {
 	params := &governance.BlackNodeParam{
 		PeerPubkey: blackNodePub,
 	}
@@ -51,41 +49,41 @@ func buildBlackTranaction(blockNum uint32, blackNodePub string) (*types.Transact
 	return tx, nil
 }
 
-func buildEmergencyBlock(blockNum uint32, ctx *testframework.TestFrameworkContext) ([]byte, error) {
-	block, err := getprevBlock(blockNum, ctx)
+func buildEmergencyBlock(ctx *testframework.TestFrameworkContext, user *account.Account, peerPubkeyList []string) ([]byte, error) {
+	blkNum, err := ctx.Ont.Rpc.GetBlockCount()
+	if err != nil {
+		ctx.LogError("ctx.Ont.Rpc.GetBlockCount error:%s", err)
+		return nil, false
+	}
+	block, err := getprevBlock(blkNum, ctx)
 	if err != nil {
 		return nil, err
 	}
-	tx, err := buildBlackTranaction(blockNum, blocknodepub)
+	tx, err := buildBlackTranaction(blkNum, peerPubkeyList)
 	if err != nil {
 		return nil, err
 	}
 	sysTxs := make([]*types.Transaction, 0)
 	sysTxs = append(sysTxs, tx)
-	consensusPayload, err := getconsensusPaylaod(blockNum, ctx)
+	consensusPayload, err := getconsensusPaylaod(ctx, block)
 	if err != nil {
 		return nil, err
-	}
-	account, ok := getAccount(ctx)
-	if !ok {
-		return nil, fmt.Errorf("getAccount failed")
 	}
 	blocktimestamp := uint32(time.Now().Unix())
 	if block.Header.Timestamp >= blocktimestamp {
 		blocktimestamp = block.Header.Timestamp + 1
 	}
-	blk, err := constructBlock(account,blockNum, block.Hash(),blocktimestamp, sysTxs, consensusPayload, ctx)
+	blk, err := constructBlock(user, blkNum, block.Hash(), blocktimestamp, sysTxs, consensusPayload, ctx)
 	if err != nil {
 		return nil, fmt.Errorf("constructBlock failed")
 	}
-
 	emergencyblock := &emergency.EmergencyActionRequest{
 		Reason:         emergency.FalseConsensus,
 		Evidence:       emergency.ConsensusMessage,
-		ProposalBlkNum: blockNum,
+		ProposalBlkNum: bkNum,
 		ProposalBlk:    blk,
 		ProposerPK:     account.PublicKey,
-		ReqPK:account.PublicKey,
+		ReqPK:          account.PublicKey,
 	}
 	blkHash := blk.Hash()
 	blocksig, err := signature.Sign(account, blkHash[:])
@@ -112,7 +110,7 @@ func buildEmergencyBlock(blockNum uint32, ctx *testframework.TestFrameworkContex
 	}
 	emergencyblock.AdminSigs = []*types.Sig{adminsig}
 	emergencyHash := emergencyblock.Hash()
-	reqSig, _ := signature.Sign(account,emergencyHash[:])
+	reqSig, _ := signature.Sign(account, emergencyHash[:])
 	emergencyblock.ReqSig = reqSig
 	emergency := new(bytes.Buffer)
 	if err := emergencyblock.Serialize(emergency); err != nil {
@@ -122,23 +120,18 @@ func buildEmergencyBlock(blockNum uint32, ctx *testframework.TestFrameworkContex
 }
 
 func getprevBlock(blkNum uint32, ctx *testframework.TestFrameworkContext) (*types.Block, error) {
-	blk, err := ctx.Ont.Rpc.GetBlockByHeight(blkNum-1)
+	blk, err := ctx.Ont.Rpc.GetBlockByHeight(blkNum - 1)
 	if err != nil {
 		return nil, err
 	}
 	return blk, nil
 }
 
-func getconsensusPaylaod(blkNum uint32, ctx *testframework.TestFrameworkContext) ([]byte, error) {
-	blk, err := getprevBlock(blkNum, ctx)
-	if err != nil {
-		return nil, err
-	}
+func getconsensusPaylaod(ctx *testframework.TestFrameworkContext, blk *types.Block) ([]byte, error) {
 	block, err := initVbftBlock(blk)
 	if err != nil {
 		return nil, err
 	}
-
 	lastConfigBlkNum := block.Info.LastConfigBlockNum
 	if block.Info.NewChainConfig != nil {
 		lastConfigBlkNum = block.Block.Header.Height
@@ -155,7 +148,7 @@ func getconsensusPaylaod(blkNum uint32, ctx *testframework.TestFrameworkContext)
 	return consensusPayload, nil
 }
 
-func getblockRoot(txroot common.Uint256, ctx *testframework.TestFrameworkContext) (common.Uint256, error) {
+func getblockRoot(ctx *testframework.TestFrameworkContext, txroot common.Uint256) (common.Uint256, error) {
 	blkroot, err := ctx.Ont.Rpc.GetBlockRootWithNewTxRoot(txroot)
 	if err != nil {
 		return common.Uint256{}, err
@@ -163,13 +156,13 @@ func getblockRoot(txroot common.Uint256, ctx *testframework.TestFrameworkContext
 	return blkroot, nil
 }
 
-func constructBlock(account *account.Account,blkNum uint32, prevBlkHash common.Uint256,blocktimestamp uint32, systxs []*types.Transaction, consensusPayload []byte, ctx *testframework.TestFrameworkContext) (*types.Block, error) {
+func constructBlock(account *account.Account, blkNum uint32, prevBlkHash common.Uint256, blocktimestamp uint32, systxs []*types.Transaction, consensusPayload []byte, ctx *testframework.TestFrameworkContext) (*types.Block, error) {
 	txHash := []common.Uint256{}
 	for _, t := range systxs {
 		txHash = append(txHash, t.Hash())
 	}
 	txRoot := common.ComputeMerkleRoot(txHash)
-	blockRoot, err := getblockRoot(txRoot, ctx)
+	blockRoot, err := getblockRoot(ctx, txRoot)
 	if err != nil {
 		return nil, err
 	}

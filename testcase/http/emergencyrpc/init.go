@@ -5,5 +5,6 @@ import (
 )
 
 func TestEmergencyBlockRpc() {
-	testframework.TFramework.RegTestCase("TestGenesisEmergencyBlock", TestGenesisEmergencyBlock)
+	testframework.TFramework.RegTestCase("EmergencyBlock", EmergencyBlock)
+	//testframework.TFramework.RegTestCase("TestGlobalParam", TestGlobalParam)
 }
