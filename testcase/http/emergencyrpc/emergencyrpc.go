@@ -27,27 +27,27 @@ import (
 )
 
 type EmergencyParam struct {
-	Path           string
-	PeerPubkeyList []string
+	Path       string   `json:"Path"`
+	PeerPubkey []string `json:"PeerPubkey"`
 }
 
 func EmergencyBlock(ctx *testframework.TestFrameworkContext) bool {
 	data, err := ioutil.ReadFile("./params/Emergency.json")
 	if err != nil {
 		ctx.LogError("ioutil.ReadFile failed %v", err)
-		return nil, false
+		return false
 	}
 	emergencyParam := new(EmergencyParam)
 	err = json.Unmarshal(data, emergencyParam)
 	if err != nil {
 		ctx.LogError("json.Unmarshal failed %v", err)
-		return nil, false
+		return false
 	}
 	user, ok := getAccount(ctx, emergencyParam.Path)
 	if !ok {
-		return nil, false
+		return false
 	}
-	block, err := buildEmergencyBlock(ctx, user, emergencyParam.PeerPubkeyList)
+	block, err := buildEmergencyBlock(ctx, user, emergencyParam.PeerPubkey)
 	if err != nil {
 		ctx.LogError("buildEmergencyBlock error:%s", err)
 		return false

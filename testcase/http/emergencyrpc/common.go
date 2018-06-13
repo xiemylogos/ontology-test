@@ -42,7 +42,7 @@ import (
 
 func buildBlackTranaction(blockNum uint32, blackNodePub []string) (*types.Transaction, error) {
 	params := &governance.BlackNodeParam{
-		PeerPubkey: blackNodePub,
+		PeerPubkeyList: blackNodePub,
 	}
 	blacknodebf := new(bytes.Buffer)
 	if err := params.Serialize(blacknodebf); err != nil {
@@ -61,11 +61,11 @@ func buildBlackTranaction(blockNum uint32, blackNodePub []string) (*types.Transa
 	return tx, nil
 }
 
-func buildEmergencyBlock(ctx *testframework.TestFrameworkContext, user *account.Account, peerPubkeyList []string) ([]byte, error) {
+func buildEmergencyBlock(ctx *testframework.TestFrameworkContext, account *account.Account, peerPubkeyList []string) ([]byte, error) {
 	blkNum, err := ctx.Ont.Rpc.GetBlockCount()
 	if err != nil {
 		ctx.LogError("ctx.Ont.Rpc.GetBlockCount error:%s", err)
-		return nil, false
+		return nil, err
 	}
 	block, err := getprevBlock(blkNum, ctx)
 	if err != nil {
@@ -85,14 +85,14 @@ func buildEmergencyBlock(ctx *testframework.TestFrameworkContext, user *account.
 	if block.Header.Timestamp >= blocktimestamp {
 		blocktimestamp = block.Header.Timestamp + 1
 	}
-	blk, err := constructBlock(user, blkNum, block.Hash(), blocktimestamp, sysTxs, consensusPayload, ctx)
+	blk, err := constructBlock(account, blkNum, block.Hash(), blocktimestamp, sysTxs, consensusPayload, ctx)
 	if err != nil {
 		return nil, fmt.Errorf("constructBlock failed")
 	}
 	emergencyblock := &emergency.EmergencyActionRequest{
 		Reason:         emergency.FalseConsensus,
 		Evidence:       emergency.ConsensusMessage,
-		ProposalBlkNum: bkNum,
+		ProposalBlkNum: blkNum,
 		ProposalBlk:    blk,
 		ProposerPK:     account.PublicKey,
 		ReqPK:          account.PublicKey,
