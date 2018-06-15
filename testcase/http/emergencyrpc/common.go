@@ -37,7 +37,6 @@ import (
 	emergency "github.com/ontio/ontology/p2pserver/message/types"
 	"github.com/ontio/ontology/smartcontract/service/native/governance"
 	nutils "github.com/ontio/ontology/smartcontract/service/native/utils"
-	"github.com/ontio/ontology/smartcontract/states"
 )
 
 func buildBlackTranaction(blockNum uint32, blackNodePub []string) (*types.Transaction, error) {
@@ -48,16 +47,8 @@ func buildBlackTranaction(blockNum uint32, blackNodePub []string) (*types.Transa
 	if err := params.Serialize(blacknodebf); err != nil {
 		return nil, fmt.Errorf("Serialize BlackNodeParams error:%s", err)
 	}
-
-	init := states.Contract{
-		Address: nutils.GovernanceContractAddress,
-		Method:  governance.BLACK_NODE,
-		Args:    blacknodebf.Bytes(),
-	}
-	bf := new(bytes.Buffer)
-	init.Serialize(bf)
-	tx := utils.NewInvokeTransaction(bf.Bytes())
-	tx.Nonce = blockNum
+	tx := utils.BuildNativeTransaction(nutils.GovernanceContractAddress, governance.BLACK_NODE, blacknodebf.Bytes())
+	tx.Nonce = blkNum
 	return tx, nil
 }
 
