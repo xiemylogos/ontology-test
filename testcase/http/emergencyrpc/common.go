@@ -48,7 +48,7 @@ func buildBlackTranaction(blockNum uint32, blackNodePub []string) (*types.Transa
 		return nil, fmt.Errorf("Serialize BlackNodeParams error:%s", err)
 	}
 	tx := utils.BuildNativeTransaction(nutils.GovernanceContractAddress, governance.BLACK_NODE, blacknodebf.Bytes())
-	tx.Nonce = blkNum
+	tx.Nonce = blockNum
 	return tx, nil
 }
 
