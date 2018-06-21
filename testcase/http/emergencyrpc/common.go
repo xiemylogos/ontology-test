@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/ontio/ontology-crypto/keypair"
+	sdkcom "github.com/ontio/ontology-go-sdk/common"
 	"github.com/ontio/ontology-test/testframework"
 	"github.com/ontio/ontology/account"
 	"github.com/ontio/ontology/common"
@@ -33,21 +34,24 @@ import (
 	"github.com/ontio/ontology/consensus/vbft/config"
 	"github.com/ontio/ontology/core/signature"
 	"github.com/ontio/ontology/core/types"
-	"github.com/ontio/ontology/core/utils"
+	httpcom "github.com/ontio/ontology/http/base/common"
 	emergency "github.com/ontio/ontology/p2pserver/message/types"
 	"github.com/ontio/ontology/smartcontract/service/native/governance"
+	gover "github.com/ontio/ontology/smartcontract/service/native/governance"
 	nutils "github.com/ontio/ontology/smartcontract/service/native/utils"
 )
 
-func buildBlackTranaction(blockNum uint32, blackNodePub []string) (*types.Transaction, error) {
+func buildBlackTranaction(ctx *testframework.TestFrameworkContext, blockNum uint32, blackNodePub []string) (*types.Transaction, error) {
 	params := &governance.BlackNodeParam{
 		PeerPubkeyList: blackNodePub,
 	}
-	blacknodebf := new(bytes.Buffer)
-	if err := params.Serialize(blacknodebf); err != nil {
-		return nil, fmt.Errorf("Serialize BlackNodeParams error:%s", err)
+	var cversion = byte(0)
+
+	invokeCode, err := httpcom.BuildNativeInvokeCode(nutils.GovernanceContractAddress, cversion, gover.BLACK_NODE, []interface{}{params})
+	if err != nil {
+		return nil, fmt.Errorf("BuildNativeInvokeCode error:%s", err)
 	}
-	tx := utils.BuildNativeTransaction(nutils.GovernanceContractAddress, governance.BLACK_NODE, blacknodebf.Bytes())
+	tx := sdkcom.NewInvokeTransaction(ctx.GetGasPrice(), ctx.GetGasLimit(), invokeCode)
 	tx.Nonce = blockNum
 	return tx, nil
 }
@@ -62,7 +66,7 @@ func buildEmergencyBlock(ctx *testframework.TestFrameworkContext, account *accou
 	if err != nil {
 		return nil, err
 	}
-	tx, err := buildBlackTranaction(blkNum, peerPubkeyList)
+	tx, err := buildBlackTranaction(ctx, blkNum, peerPubkeyList)
 	if err != nil {
 		return nil, err
 	}
